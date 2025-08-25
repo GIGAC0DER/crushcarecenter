@@ -420,17 +420,21 @@
       const waterStats = document.getElementById('water-stats');
       const greeting = document.getElementById('greeting');
 
-      const symptomForm = document.getElementById('symptom-form');
-
+      // Timer elements
       const timerDisplay = document.getElementById('timer-display');
       const startBtn = document.getElementById('timer-start');
       const pauseBtn = document.getElementById('timer-pause');
       const resetBtn = document.getElementById('timer-reset');
       const presetButtons = document.querySelectorAll('.timer-controls [data-min]');
 
-      // New elements for overall submission
-      const submitBtn = document.getElementById('submit-all');
-      const submitStatus = document.getElementById('submit-status');
+      // Debug timer elements
+      console.log('Timer elements found:', {
+        timerDisplay: timerDisplay,
+        startBtn: startBtn,
+        pauseBtn: pauseBtn,
+        resetBtn: resetBtn,
+        presetButtons: presetButtons.length
+      });
 
       function setGreeting() {
         const hour = new Date().getHours();
@@ -469,33 +473,6 @@
       document.getElementById('add-large').addEventListener('click', () => setWater(getWater() + 500));
       document.getElementById('reset-water').addEventListener('click', () => setWater(0));
 
-      // Symptoms
-      function loadSymptoms() {
-        try {
-          const raw = localStorage.getItem('symptoms') || '{}';
-          const data = JSON.parse(raw);
-          for (const [name, value] of Object.entries(data)) {
-            const input = symptomForm.elements.namedItem(name);
-            if (!input) continue;
-            if (input.type === 'checkbox') input.checked = Boolean(value);
-            else if (input.tagName === 'TEXTAREA') input.value = String(value || '');
-          }
-        } catch { }
-      }
-      function saveSymptoms() { // No event parameter needed as it's not a form submission now
-        const data = {};
-        for (const el of symptomForm.elements) {
-          if (!el.name) continue;
-          if (el.type === 'checkbox') data[el.name] = el.checked;
-          else if (el.tagName === 'TEXTAREA') data[el.name] = el.value.trim();
-        }
-        localStorage.setItem('symptoms', JSON.stringify(data));
-        // No saved badge needed here anymore
-      }
-      // Symptom changes should save automatically or when global submit is pressed, not on form submit
-      symptomForm.addEventListener('change', saveSymptoms); // Save symptoms when any input changes
-      symptomForm.addEventListener('keyup', saveSymptoms); // Save symptoms when text area is typed into
-
       // Timer
       let remainingSeconds = 20 * 60;
       let timerId = null;
@@ -522,106 +499,46 @@
         }
       }
       function startTimer() {
+        console.log('Start timer clicked, timerId:', timerId);
         if (timerId) return;
         timerId = setInterval(tick, 1000);
+        console.log('Timer started, timerId:', timerId);
       }
       function pauseTimer() {
+        console.log('Pause timer clicked, timerId:', timerId);
         if (!timerId) return;
         clearInterval(timerId);
         timerId = null;
+        console.log('Timer paused');
       }
       function resetTimer() {
+        console.log('Reset timer clicked');
         pauseTimer();
         remainingSeconds = Number(timerDisplay.dataset.defaultSeconds || 20 * 60);
         updateTimerUI();
+        console.log('Timer reset to:', remainingSeconds);
       }
 
       for (const btn of presetButtons) {
         btn.addEventListener('click', () => {
+          console.log('Preset button clicked:', btn.getAttribute('data-min'), 'minutes');
           const minutes = Number(btn.getAttribute('data-min')) || 20;
           remainingSeconds = minutes * 60;
           timerDisplay.dataset.defaultSeconds = String(remainingSeconds);
           updateTimerUI();
+          console.log('Timer set to:', remainingSeconds, 'seconds');
         });
       }
+      console.log('Adding event listeners to timer buttons');
       startBtn.addEventListener('click', startTimer);
       pauseBtn.addEventListener('click', pauseTimer);
       resetBtn.addEventListener('click', resetTimer);
-
-      function collectAllData() {
-        const hydration = getWater();
-        const currentTimerDisplay = timerDisplay.textContent;
-        const timerActive = timerId !== null;
-
-        const symptoms = [];
-        for (const el of symptomForm.elements) {
-          if (el.type === 'checkbox' && el.checked) {
-            symptoms.push(el.nextSibling.textContent.trim()); // Get the label text
-          }
-        }
-        const notes = symptomForm.elements.namedItem('notes').value.trim();
-
-        return {
-          hydration,
-          currentTimerDisplay,
-          timerActive,
-          symptoms: symptoms.length > 0 ? symptoms.join(', ') : 'No symptoms reported',
-          notes: notes || 'No additional notes'
-        };
-      }
-
-      submitBtn.addEventListener('click', async () => {
-        submitStatus.textContent = 'Collecting data...';
-        const data = collectAllData();
-        
-        const templateParams = {
-          to_name: 'Anmol',
-          to_email: 'anmoltiwari9959@gmail.com',
-          from_name: 'Your Crush',
-          subject: 'Health Update from Crush Care Center 💗',
-          hydration_data: `${data.hydration} ml / ${WATER_GOAL_ML} ml`,
-          timer_status: data.currentTimerDisplay,
-          timer_active: data.timerActive ? 'Yes' : 'No',
-          symptoms_data: data.symptoms,
-          notes_data: data.notes,
-          send_time: new Date().toLocaleString()
-        };
-
-        submitStatus.textContent = 'Sending health update...';
-        const result = await sendEmail('template_7m557ju', templateParams);
-        if (result.success) {
-          submitStatus.textContent = 'Health update sent successfully! Anmol has been notified. ✓';
-        } else {
-          submitStatus.textContent = 'Failed to send health update. Please try again later.';
-        }
-        setTimeout(() => {
-          submitStatus.textContent = '';
-        }, 5000);
-      });
-
-      // Send visit notification on page load
-      function sendVisitNotification() {
-        const templateParams = {
-          to_name: 'Anmol',
-          to_email: 'anmoltiwari9959@gmail.com',
-          from_name: 'Visitor',
-          subject: 'Your Crush visited the Care Center! 💖',
-          visit_time: new Date().toLocaleString()
-        };
-        // Send a visit notification without awaiting the result, as it's not critical to the user experience
-        emailjs.send('service_0c4fjcl', 'template_7m557ju', templateParams) // Using the same template for now
-          .then(response => console.log('Visit notification sent:', response))
-          .catch(error => console.error('Failed to send visit notification:', error));
-      }
+      console.log('Event listeners added');
 
       // Init
       setGreeting();
       updateWaterUI();
-      loadSymptoms();
       updateTimerUI();
-
-      // Trigger visit notification after a short delay
-      setTimeout(sendVisitNotification, 2000);
     })();
   </script>
 </body>
